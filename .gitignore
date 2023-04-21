@@ -1,0 +1,13 @@
+settings/
+bin/
+target/
+.idea/*
+.classpath
+.factorypath
+.project
+
+*.jar
+*.prefs
+*.log
+*.log
+*.class
