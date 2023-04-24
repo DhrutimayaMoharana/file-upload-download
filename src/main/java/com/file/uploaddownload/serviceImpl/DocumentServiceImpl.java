@@ -148,21 +148,21 @@ public class DocumentServiceImpl implements DocumentService {
 		}
 	}
 	
-	@Override
-	public Response<?> storeInAwsS3(MultipartFile file, Long currentDate) throws Exception {
-		String fileName = StringUtils.cleanPath(currentDate + file.getOriginalFilename());
-
-		String bucketName = "codejava-bucket";
-        
-        String filePath = "D:/Images/" + fileName;
-         
-        S3Client client = S3Client.builder().build();
-         
-        PutObjectRequest request = PutObjectRequest.builder()
-                            .bucket(bucketName).key(fileName).build();
-         
-        client.putObject(request, RequestBody.fromFile(new File(filePath)));
-		
-	}
+//	@Override
+//	public Response<?> storeInAwsS3(MultipartFile file, Long currentDate) throws Exception {
+//		String fileName = StringUtils.cleanPath(currentDate + file.getOriginalFilename());
+//
+//		String bucketName = "codejava-bucket";
+//        
+//        String filePath = "D:/Images/" + fileName;
+//         
+//        S3Client client = S3Client.builder().build();
+//         
+//        PutObjectRequest request = PutObjectRequest.builder()
+//                            .bucket(bucketName).key(fileName).build();
+//         
+//        client.putObject(request, RequestBody.fromFile(new File(filePath)));
+//		
+//	}
 
 }
