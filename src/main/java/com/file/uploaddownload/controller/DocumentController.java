@@ -1,5 +1,7 @@
 package com.file.uploaddownload.controller;
 
+import javax.servlet.http.HttpServletResponse;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -48,6 +50,16 @@ public class DocumentController {
 		return new ResponseEntity<>(respone, HttpStatus.valueOf(respone.getResponseCode()));
 
 	}
+	
+	@PostMapping("/v4/uploadFile")
+	public ResponseEntity<?> uploadFileInAwsS3Bucket(@ModelAttribute MultipartFile file)
+			throws Exception {
+
+		Response<?> respone = documentService.storeInAwsS3(file, System.currentTimeMillis());
+
+		return new ResponseEntity<>(respone, HttpStatus.valueOf(respone.getResponseCode()));
+
+	}
 
 	@GetMapping("/download/{filename}")
 	public ResponseEntity<?> downloadFile(@PathVariable("filename") String filename) {
@@ -57,6 +69,17 @@ public class DocumentController {
 		return ResponseEntity.ok()
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
 				.body(resource);
+
+	}
+	
+	@GetMapping("/download/fromAws/{filename}")
+	public void downloadFileFromAWS(@PathVariable("filename") String filename,HttpServletResponse response) {
+
+		response = documentService.downloadDocumentFromAwsS3Bucket(filename,response);
+
+//		return ResponseEntity.ok()
+//				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+//				.body(resource);
 
 	}
 

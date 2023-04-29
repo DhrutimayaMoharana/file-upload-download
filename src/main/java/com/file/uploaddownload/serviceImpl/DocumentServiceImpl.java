@@ -1,9 +1,10 @@
 package com.file.uploaddownload.serviceImpl;
 
 import java.awt.image.RenderedImage;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -16,19 +17,21 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
+import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.util.IOUtils;
+import com.file.uploaddownload.config.AwsAdapter;
 import com.file.uploaddownload.config.FileUploadProperties;
 import com.file.uploaddownload.dto.DocumentRequestDto;
 import com.file.uploaddownload.dto.Response;
@@ -43,9 +46,12 @@ public class DocumentServiceImpl implements DocumentService {
 	private DocumentRepository documentRepository;
 
 	private Path dirLocation;
-	
-	@Value("${aws.s3.bucket}")
-	private String awsPath;
+
+//	@Value("${aws.s3.bucket}")
+//	private String awsPath;
+
+	@Autowired
+	private AwsAdapter awsAdapter;
 
 	@Autowired
 	public DocumentServiceImpl(FileUploadProperties fileUploadProperties) {
@@ -68,8 +74,8 @@ public class DocumentServiceImpl implements DocumentService {
 		byte[] fileContent = documentRequestDto.getDocument().getBytes();
 		String encodedString = Base64.getEncoder().encodeToString(fileContent);
 
-		Document document = documentRepository.save(
-				new Document(null, documentRequestDto.getFileName(), documentRequestDto.getFileType(), encodedString));
+		Document document = documentRepository.save(new Document(null, documentRequestDto.getFileName(),
+				documentRequestDto.getFileType(), encodedString, false));
 
 		return new Response<>(HttpStatus.OK.value(), "Document save in DB successfully!!!",
 				document.convertToDocumentDto());
@@ -81,11 +87,11 @@ public class DocumentServiceImpl implements DocumentService {
 
 		try {
 			Path targetLocation = this.dirLocation.resolve(fileName);
-			
-			Path awsTargetLocation = Paths.get(awsPath).resolve(fileName);
-			
+
+//			Path awsTargetLocation = Paths.get(awsPath).resolve(fileName);
+
 			Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-			Files.copy(file.getInputStream(), awsTargetLocation, StandardCopyOption.REPLACE_EXISTING);
+//			Files.copy(file.getInputStream(), awsTargetLocation, StandardCopyOption.REPLACE_EXISTING);
 			String fileUploadPath = dirLocation + "/" + fileName;
 			return new Response<>(HttpStatus.OK.value(), "File successfull uploaded", fileUploadPath);
 		} catch (IOException ex) {
@@ -136,7 +142,8 @@ public class DocumentServiceImpl implements DocumentService {
 		ImageWriteParam jpegWiterParam = jpegWriter.getDefaultWriteParam();
 		jpegWiterParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
 		jpegWiterParam.setCompressionQuality(compressQuality.floatValue());
-		try (ImageOutputStream outputStream = ImageIO.createImageOutputStream(new java.io.File(dirLocation + "/" + fileName))) {
+		try (ImageOutputStream outputStream = ImageIO
+				.createImageOutputStream(new java.io.File(dirLocation + "/" + fileName))) {
 			jpegWriter.setOutput(outputStream);
 			IIOImage outputImage = new IIOImage(image, null, null);
 			jpegWriter.write(null, outputImage, jpegWiterParam);
@@ -147,22 +154,35 @@ public class DocumentServiceImpl implements DocumentService {
 			return new Response<>(HttpStatus.BAD_REQUEST.value(), "File fail to uploaded", null);
 		}
 	}
-	
-//	@Override
-//	public Response<?> storeInAwsS3(MultipartFile file, Long currentDate) throws Exception {
-//		String fileName = StringUtils.cleanPath(currentDate + file.getOriginalFilename());
-//
-//		String bucketName = "codejava-bucket";
-//        
-//        String filePath = "D:/Images/" + fileName;
-//         
-//        S3Client client = S3Client.builder().build();
-//         
-//        PutObjectRequest request = PutObjectRequest.builder()
-//                            .bucket(bucketName).key(fileName).build();
-//         
-//        client.putObject(request, RequestBody.fromFile(new File(filePath)));
-//		
-//	}
+
+	@Override
+	public Response<?> storeInAwsS3(MultipartFile file, Long currentDate) throws Exception {
+		String fileName = StringUtils.cleanPath(currentDate + file.getOriginalFilename());
+
+		URL url = awsAdapter.storeObjectInS3(file, fileName, file.getContentType());
+
+		Document document = documentRepository
+				.save(new Document(null, fileName, file.getContentType().toString(), url.toString(), true));
+
+		return new Response<>(HttpStatus.OK.value(), "File successfull uploaded", document);
+
+	}
+
+	@Override
+	public HttpServletResponse downloadDocumentFromAwsS3Bucket(String fileName, HttpServletResponse response) {
+
+		S3Object s3Obj = awsAdapter.fetchObject(fileName);
+
+		InputStream stream = s3Obj.getObjectContent();
+		response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
+		try {
+			IOUtils.copy(stream, response.getOutputStream());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return response;
+
+	}
 
 }

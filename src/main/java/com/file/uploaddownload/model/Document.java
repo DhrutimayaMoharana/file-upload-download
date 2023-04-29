@@ -22,6 +22,8 @@ public class Document {
 
 	private String document;
 
+	private Boolean isInAwsBucket;
+
 	public Long getId() {
 		return id;
 	}
@@ -54,17 +56,26 @@ public class Document {
 		this.document = document;
 	}
 
+	public Boolean getIsInAwsBucket() {
+		return isInAwsBucket;
+	}
+
+	public void setIsInAwsBucket(Boolean isInAwsBucket) {
+		this.isInAwsBucket = isInAwsBucket;
+	}
+
 	public Document() {
 		super();
 		// TODO Auto-generated constructor stub
 	}
 
-	public Document(Long id, String fileName, String fileType, String document) {
+	public Document(Long id, String fileName, String fileType, String document, Boolean isInAwsBucket) {
 		super();
 		this.id = id;
 		this.fileName = fileName;
 		this.fileType = fileType;
 		this.document = document;
+		this.isInAwsBucket = isInAwsBucket;
 	}
 
 	public DocumentDto convertToDocumentDto() {
